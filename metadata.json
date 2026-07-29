@@ -1,0 +1,6 @@
+{
+  "name": "Nostra",
+  "description": "Buscador descentralizado baseado no protocolo Nostr com suporte a torrents, magnet links, IPFS, sites, PDFs, MP3s e links Onion da Deep Web.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
