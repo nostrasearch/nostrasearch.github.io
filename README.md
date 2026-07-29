@@ -1,7 +1,7 @@
-# <p align="center">
+# <div align="center">
 
-  <center><img src="https://raw.githubusercontent.com/nostrasearch/nostrasearch.github.io/refs/heads/main/icon.png" alt="Nostra Search" width="160"></center>
-</p>
+<img src="https://raw.githubusercontent.com/nostrasearch/nostrasearch.github.io/refs/heads/main/icon.png" alt="Nostra Search" width="160">
+</div>
 
 <h1 align="center">Nostra Search</h1>
 
