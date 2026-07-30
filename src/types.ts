@@ -26,6 +26,7 @@ export interface IndexedItem {
   userVoted?: boolean;
   relaySource?: string; // Which relay it came from
   rawEvent?: any; // Full Nostr event object
+  isEncrypted?: boolean; // Indicates item payload was encrypted on relay for anti-censorship
 }
 
 export interface NostrUser {

@@ -11,6 +11,7 @@ import {
   Video,
   FileText,
   ShieldAlert,
+  ShieldCheck,
   Code,
   ExternalLink,
   Radio,
@@ -103,6 +104,19 @@ export const DetailModal: React.FC<DetailModalProps> = ({
             <span className="text-purple-300 font-bold">{item.pubkey}</span>
           </div>
         </div>
+
+        {/* Anti-Censorship Encryption Notice */}
+        {item.isEncrypted && (
+          <div className="mb-6 p-4 rounded-2xl bg-emerald-950/40 border border-emerald-800/80 space-y-1">
+            <h4 className="text-xs font-bold text-emerald-300 uppercase flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>{t.encryptedBadge}</span>
+            </h4>
+            <p className="text-xs text-emerald-200/80 leading-relaxed">
+              {t.decryptedSuccessMsg}
+            </p>
+          </div>
+        )}
 
         {/* URL / Protocol Box */}
         <div className="mb-6 space-y-2">

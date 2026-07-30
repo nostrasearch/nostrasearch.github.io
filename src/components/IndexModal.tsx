@@ -12,6 +12,8 @@ import {
   Video,
   FileText,
   ShieldAlert,
+  ShieldCheck,
+  Lock,
   Loader2,
 } from 'lucide-react';
 import { ContentType, Language, NostrUser, NostrRelay } from '../types';
@@ -45,6 +47,7 @@ export const IndexModal: React.FC<IndexModalProps> = ({
   const [description, setDescription] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [contentLang, setContentLang] = useState(lang);
+  const [enableEncryption, setEnableEncryption] = useState(true);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishStatus, setPublishStatus] = useState<
     { relay: string; success: boolean; msg?: string }[] | null
@@ -96,14 +99,18 @@ export const IndexModal: React.FC<IndexModalProps> = ({
         .map((s) => s.trim())
         .filter(Boolean);
 
-      const newItem = await nostrRelayManager.publishIndexItem(user, {
-        title: title.trim(),
-        url: url.trim(),
-        type,
-        description: description.trim(),
-        tags: parsedTags,
-        lang: contentLang,
-      });
+      const newItem = await nostrRelayManager.publishIndexItem(
+        user,
+        {
+          title: title.trim(),
+          url: url.trim(),
+          type,
+          description: description.trim(),
+          tags: parsedTags,
+          lang: contentLang,
+        },
+        enableEncryption
+      );
 
       // Show success, wait 1.5s, trigger update & close modal
       setIsPublishing(false);
@@ -253,6 +260,27 @@ export const IndexModal: React.FC<IndexModalProps> = ({
                 <option value="pt">Português (PT)</option>
               </select>
             </div>
+          </div>
+
+          {/* Anti-Censorship Relay Encryption Toggle Box */}
+          <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-800/60 space-y-2">
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={enableEncryption}
+                onChange={(e) => setEnableEncryption(e.target.checked)}
+                className="mt-1 w-4 h-4 rounded border-slate-700 text-emerald-500 focus:ring-emerald-500/30 accent-emerald-500"
+              />
+              <div>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t.enableEncryptionLabel}</span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                  {t.enableEncryptionDesc}
+                </p>
+              </div>
+            </label>
           </div>
 
           {/* Active Broadcast Relays Badge */}

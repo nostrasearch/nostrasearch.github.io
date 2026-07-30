@@ -7,6 +7,7 @@ import {
   Video,
   FileText,
   ShieldAlert,
+  ShieldCheck,
   Copy,
   Check,
   ExternalLink,
@@ -123,6 +124,16 @@ export const ResultCard: React.FC<ResultCardProps> = ({
               {badge.icon}
               <span>{badge.label}</span>
             </span>
+
+            {item.isEncrypted && (
+              <span
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-950/70 border border-emerald-800/80 text-emerald-300 shadow-sm"
+                title={t.decryptedSuccessMsg}
+              >
+                <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                <span>{t.encryptedBadge}</span>
+              </span>
+            )}
 
             {item.size && (
               <span className="text-xs px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-mono">

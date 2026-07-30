@@ -70,6 +70,12 @@ export const translations = {
     publishSuccess: 'Successfully published index to Nostr relays!',
     publishFailed: 'Failed to publish to relays. Check your login and relay connection.',
 
+    // Encryption / Anti-Censorship
+    enableEncryptionLabel: 'Censorship-Resistant Relay Encryption (AES-256-GCM)',
+    enableEncryptionDesc: 'Encrypts index data before sending to Nostr relays so relay moderators cannot inspect or censor your links or keywords.',
+    encryptedBadge: 'Anti-Censorship Encrypted',
+    decryptedSuccessMsg: 'Decrypted automatically from relay ciphertext via Nostra AES-256-GCM Protocol',
+
     // Login & Account Creation Modal
     loginModalTitle: 'Connect Nostr Identity',
     loginModalDesc: 'Sign in or create a Nostr keypair to index search results and vote.',
@@ -170,6 +176,12 @@ export const translations = {
     publishing: 'Assinando e Publicando nos Relays...',
     publishSuccess: 'Índice publicado com sucesso nos relays Nostr!',
     publishFailed: 'Falha ao publicar nos relays. Verifique seu login e conexão com os relays.',
+
+    // Encryption / Anti-Censorship
+    enableEncryptionLabel: 'Criptografia Anti-Censura nos Relays (AES-256-GCM)',
+    enableEncryptionDesc: 'Criptografa o conteúdo da indexação antes de enviar aos relays para que moderadores não consigam inspecionar ou deletar seus links e palavras-chave.',
+    encryptedBadge: 'Criptografado Anti-Censura',
+    decryptedSuccessMsg: 'Descriptografado automaticamente do texto cifrado no relay via Protocolo Nostra AES-256-GCM',
 
     // Login & Account Creation Modal
     loginModalTitle: 'Conectar Identidade Nostr',

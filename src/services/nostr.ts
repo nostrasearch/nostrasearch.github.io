@@ -131,12 +131,12 @@ export class NostrRelayManager {
         ws.send(JSON.stringify(['REQ', subId, reqFilter]));
       };
 
-      ws.onmessage = (msg) => {
+      ws.onmessage = async (msg) => {
         try {
           const data = JSON.parse(msg.data);
           if (Array.isArray(data) && data[0] === 'EVENT') {
             const event = data[2];
-            const parsedItem = this.parseNostrEventToItem(event, url);
+            const parsedItem = await this.parseNostrEventToItem(event, url);
             if (parsedItem) {
               const idx = this.relays.findIndex((r) => r.url === url);
               if (idx !== -1) {
@@ -227,30 +227,76 @@ export class NostrRelayManager {
     this.connectAllRelays();
   }
 
-  public parseNostrEventToItem(event: any, relayUrl?: string): IndexedItem | null {
+  public async parseNostrEventToItem(event: any, relayUrl?: string): Promise<IndexedItem | null> {
     if (!event || !event.tags) return null;
 
-    const findTag = (tagName: string) => {
-      const match = event.tags.find((t: string[]) => t[0] === tagName);
-      return match ? match[1] : undefined;
-    };
+    let isEncrypted = false;
+    let title = '';
+    let url = '';
+    let type: ContentType = 'other';
+    let description = '';
+    let tags: string[] = [];
+    let lang = 'en';
 
-    const dTag = findTag('d');
-    const urlTag = findTag('url') || findTag('magnet') || findTag('r');
-    const titleTag = findTag('title') || findTag('subject');
-    const typeTag = (findTag('type') || findTag('c')) as ContentType;
+    // Check if event content or enc tag is encrypted
+    const encTag = event.tags.find((t: string[]) => t[0] === 'enc');
+    const isEncryptedContent = typeof event.content === 'string' && event.content.startsWith('NOSTRA_ENC_V1:');
 
-    if (!urlTag && !event.content) return null;
+    if (isEncryptedContent || encTag) {
+      const decrypted = await decryptNostraPayload(event.content);
+      if (decrypted) {
+        isEncrypted = true;
+        title = decrypted.title || 'Encrypted Entry';
+        url = decrypted.url || '';
+        type = decrypted.type || 'other';
+        description = decrypted.description || '';
+        tags = Array.isArray(decrypted.tags) ? decrypted.tags : [];
+        lang = decrypted.lang || 'en';
+      }
+    }
 
-    const url = urlTag || event.content;
-    const title = titleTag || event.content.substring(0, 60) || 'Untitled Entry';
+    if (!isEncrypted) {
+      const findTag = (tagName: string) => {
+        const match = event.tags.find((t: string[]) => t[0] === tagName);
+        return match ? match[1] : undefined;
+      };
 
-    const tags = event.tags
-      .filter((t: string[]) => t[0] === 't')
-      .map((t: string[]) => t[1].toLowerCase());
+      const urlTag = findTag('url') || findTag('magnet') || findTag('r');
+      const titleTag = findTag('title') || findTag('subject');
+      const typeTag = (findTag('type') || findTag('c')) as ContentType;
 
-    const langTag = findTag('lang') || findTag('l') || 'en';
-    const sizeTag = findTag('size');
+      if (!urlTag && !event.content) return null;
+
+      url = urlTag || event.content;
+      title = titleTag || event.content.substring(0, 60) || 'Untitled Entry';
+      description = event.content || '';
+      tags = event.tags
+        .filter((t: string[]) => t[0] === 't')
+        .map((t: string[]) => t[1].toLowerCase());
+      lang = findTag('lang') || findTag('l') || 'en';
+      type = typeTag || 'other';
+
+      if (!typeTag) {
+        if (url.startsWith('magnet:?')) type = 'torrent';
+        else if (url.includes('.onion')) type = 'onion';
+        else if (url.startsWith('ipfs://') || url.includes('/ipfs/')) type = 'ipfs';
+        else if (
+          /\.(mp4|webm|mkv|avi|mov|m4v)$/i.test(url) ||
+          url.includes('youtube.com') ||
+          url.includes('youtu.be') ||
+          url.includes('peertube') ||
+          url.includes('odysee.com') ||
+          url.includes('vimeo.com') ||
+          url.includes('bitchute.com') ||
+          url.includes('rumble.com')
+        ) type = 'video';
+        else if (/\.(mp3|ogg|wav|flac|aac|m4a)$/i.test(url)) type = 'mp3';
+        else if (url.endsWith('.pdf')) type = 'pdf';
+        else if (url.startsWith('http://') || url.startsWith('https://')) type = 'web';
+      }
+    }
+
+    const sizeTag = event.tags.find((t: string[]) => t[0] === 'size')?.[1];
 
     let npub = event.pubkey;
     try {
@@ -259,41 +305,22 @@ export class NostrRelayManager {
       // keep raw
     }
 
-    let detectedType: ContentType = typeTag || 'other';
-    if (!typeTag) {
-      if (url.startsWith('magnet:?')) detectedType = 'torrent';
-      else if (url.includes('.onion')) detectedType = 'onion';
-      else if (url.startsWith('ipfs://') || url.includes('/ipfs/')) detectedType = 'ipfs';
-      else if (
-        /\.(mp4|webm|mkv|avi|mov|m4v)$/i.test(url) ||
-        url.includes('youtube.com') ||
-        url.includes('youtu.be') ||
-        url.includes('peertube') ||
-        url.includes('odysee.com') ||
-        url.includes('vimeo.com') ||
-        url.includes('bitchute.com') ||
-        url.includes('rumble.com')
-      ) detectedType = 'video';
-      else if (/\.(mp3|ogg|wav|flac|aac|m4a)$/i.test(url)) detectedType = 'mp3';
-      else if (url.endsWith('.pdf')) detectedType = 'pdf';
-      else if (url.startsWith('http://') || url.startsWith('https://')) detectedType = 'web';
-    }
-
     return {
       id: event.id,
       pubkey: npub,
-      title: title,
-      url: url,
-      type: detectedType,
-      description: event.content || '',
-      tags: tags,
+      title,
+      url,
+      type,
+      description,
+      tags,
       createdAt: event.created_at,
-      lang: langTag,
+      lang,
       size: sizeTag,
       upvotes: 1,
       userVoted: this.localVotes.has(event.id),
       relaySource: relayUrl,
       rawEvent: event,
+      isEncrypted,
     };
   }
 
@@ -367,23 +394,43 @@ export class NostrRelayManager {
       description: string;
       tags: string[];
       lang: string;
-    }
+    },
+    encrypt = true
   ): Promise<IndexedItem> {
     const createdAt = Math.floor(Date.now() / 1000);
-    const formattedTags = [
+    let contentPayload = itemData.description;
+    const formattedTags: string[][] = [
       ['d', NOSTRA_D_TAG],
-      ['title', itemData.title],
-      ['url', itemData.url],
-      ['type', itemData.type],
       ['lang', itemData.lang],
-      ...itemData.tags.map((t) => ['t', t.toLowerCase().trim()]),
     ];
+
+    if (encrypt) {
+      const payloadToEncrypt = {
+        title: itemData.title,
+        url: itemData.url,
+        type: itemData.type,
+        description: itemData.description,
+        tags: itemData.tags,
+        lang: itemData.lang,
+      };
+      contentPayload = await encryptNostraPayload(payloadToEncrypt);
+      formattedTags.push(['enc', 'v1']);
+      formattedTags.push(['t', 'nostra-encrypted']);
+      formattedTags.push(['t', itemData.type]);
+    } else {
+      formattedTags.push(['title', itemData.title]);
+      formattedTags.push(['url', itemData.url]);
+      formattedTags.push(['type', itemData.type]);
+      itemData.tags.forEach((t) => {
+        formattedTags.push(['t', t.toLowerCase().trim()]);
+      });
+    }
 
     const unsignedEvent = {
       kind: NOSTRA_EVENT_KIND,
       created_at: createdAt,
       tags: formattedTags,
-      content: itemData.description,
+      content: contentPayload,
       pubkey: user.pubkey,
     };
 
@@ -428,6 +475,7 @@ export class NostrRelayManager {
       upvotes: 1,
       userVoted: true,
       rawEvent: signedEvent,
+      isEncrypted: encrypt,
     };
 
     return newItem;
