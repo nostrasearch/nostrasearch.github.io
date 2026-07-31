@@ -6,6 +6,82 @@ import { DEFAULT_RELAYS, SEED_INDEXED_ITEMS } from '../data/seedData';
 const NOSTRA_EVENT_KIND = 30078;
 const NOSTRA_D_TAG = 'nostra:index';
 
+// Nostra Censorship-Resistant Encryption Helpers (AES-256-GCM via Web Crypto API)
+const NOSTRA_CIPHER_SECRET = 'NOSTRA_CENSORSHIP_RESISTANT_SEARCH_KEY_V1';
+
+async function getEncryptionKey(): Promise<CryptoKey> {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.digest('SHA-256', enc.encode(NOSTRA_CIPHER_SECRET));
+  return crypto.subtle.importKey(
+    'raw',
+    keyMaterial,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+export async function encryptNostraPayload(dataObj: object): Promise<string> {
+  try {
+    const jsonStr = JSON.stringify(dataObj);
+    const enc = new TextEncoder();
+    const encodedData = enc.encode(jsonStr);
+
+    const key = await getEncryptionKey();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+
+    const encryptedBuffer = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      encodedData
+    );
+
+    const ivBase64 = btoa(String.fromCharCode(...iv));
+    const cipherBase64 = btoa(String.fromCharCode(...new Uint8Array(encryptedBuffer)));
+
+    return `NOSTRA_ENC_V1:${ivBase64}:${cipherBase64}`;
+  } catch (err) {
+    console.error('Failed to encrypt payload:', err);
+    return `NOSTRA_ENC_V1:RAW:${btoa(unescape(encodeURIComponent(JSON.stringify(dataObj))))}`;
+  }
+}
+
+export async function decryptNostraPayload(contentStr: string): Promise<any | null> {
+  if (!contentStr || typeof contentStr !== 'string' || !contentStr.startsWith('NOSTRA_ENC_V1:')) {
+    return null;
+  }
+
+  try {
+    const parts = contentStr.split(':');
+    if (parts.length < 3) return null;
+
+    const ivStr = parts[1];
+    const cipherStr = parts[2];
+
+    if (ivStr === 'RAW') {
+      const decodedStr = decodeURIComponent(escape(atob(cipherStr)));
+      return JSON.parse(decodedStr);
+    }
+
+    const iv = new Uint8Array(atob(ivStr).split('').map((c) => c.charCodeAt(0)));
+    const cipherBuffer = new Uint8Array(atob(cipherStr).split('').map((c) => c.charCodeAt(0)));
+
+    const key = await getEncryptionKey();
+    const decryptedBuffer = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      cipherBuffer
+    );
+
+    const dec = new TextDecoder();
+    const jsonStr = dec.decode(decryptedBuffer);
+    return JSON.parse(jsonStr);
+  } catch (err) {
+    console.warn('Failed to decrypt Nostra payload from relay:', err);
+    return null;
+  }
+}
+
 export class NostrRelayManager {
   private sockets: Map<string, WebSocket> = new Map();
   private relays: NostrRelay[] = [];
